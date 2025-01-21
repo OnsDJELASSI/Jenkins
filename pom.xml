@@ -24,12 +24,6 @@
     </repositories>
 
     <dependencies>
-        <!-- Dépendance pour le plugin OWASP ZAP -->
-        <dependency>
-            <groupId>org.owasp</groupId>
-            <artifactId>owasp-zap-maven-plugin</artifactId>
-            <version>1.0.6</version> <!-- Vérifiez cette version, peut-être plus récente -->
-        </dependency>
         <!-- Ajoutez d'autres dépendances de votre projet ici -->
     </dependencies>
 
@@ -38,7 +32,7 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>owasp-zap-maven-plugin</artifactId>
-                <version>1.0.6</version> <!-- Vérifiez cette version -->
+                <version>2.11.0</version> <!-- Mettez à jour avec la version la plus récente -->
                 <executions>
                     <execution>
                         <id>zap</id>

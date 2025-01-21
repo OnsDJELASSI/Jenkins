@@ -25,6 +25,7 @@ pipeline {
         stage('Build') {
             steps {
                 echo 'Building...'
+                sh 'cd project' 
                 sh 'mvn clean install'  // Exécuter Maven pour construire le projet
             }
         }

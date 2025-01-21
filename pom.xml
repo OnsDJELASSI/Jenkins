@@ -32,7 +32,7 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>owasp-zap-maven-plugin</artifactId>
-                <version>2.11.0</version> <!-- Mettez à jour avec la version la plus récente -->
+                <version>2.10.0</version> <!-- Mettez à jour avec une version valide -->
                 <executions>
                     <execution>
                         <id>zap</id>

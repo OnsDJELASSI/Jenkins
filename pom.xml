@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Informations sur le projet -->
+    <groupId>com.example</groupId>
+    <artifactId>my-app</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>My App</name>
+    <description>A simple web application</description>
+
+    <!-- Dépendances -->
+    <dependencies>
+        <!-- Dépendance pour le framework web (par exemple, Spring Boot ou autre) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <version>2.7.7</version>
+        </dependency>
+
+        <!-- Dépendance pour les tests unitaires -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.7.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>5.7.2</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <!-- Plugins -->
+    <build>
+        <plugins>
+            <!-- Plugin pour exécuter les tests unitaires avec Maven -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.22.2</version>
+                <configuration>
+                    <testFailureIgnore>false</testFailureIgnore>
+                </configuration>
+            </plugin>
+
+            <!-- Plugin pour l'intégration de OWASP ZAP (optionnel selon la méthode choisie) -->
+            <!-- Ce plugin permet d'exécuter ZAP en tant que processus ou de configurer un plugin CI pour la sécurité -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>owasp-zap-maven-plugin</artifactId>
+                <version>1.5.0</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>start</goal>
+                        </goals>
+                        <phase>install</phase> <!-- Exécuter après la phase install -->
+                    </execution>
+                    <execution>
+                        <goals>
+                            <goal>scan</goal>
+                        </goals>
+                        <phase>verify</phase> <!-- Exécuter pendant la phase verify -->
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <!-- Informations de configuration du projet -->
+    <properties>
+        <java.version>1.8</java.version>
+    </properties>
+
+</project>

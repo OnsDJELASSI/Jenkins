@@ -1,58 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <!-- Informations sur le projet -->
     <groupId>com.example</groupId>
     <artifactId>my-app</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>My Application</name>
-    <description>Projet Jenkins avec OWASP ZAP</description>
-
-    <properties>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
-    </properties>
+    <repositories>
+        <!-- Dépôt Maven central pour récupérer les dépendances -->
+        <repository>
+            <id>central</id>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+    </repositories>
 
     <dependencies>
-        <!-- Dépendances principales -->
+        <!-- Dépendance pour le plugin OWASP ZAP -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-            <version>2.7.6</version>
+            <groupId>org.owasp</groupId>
+            <artifactId>owasp-zap-maven-plugin</artifactId>
+            <version>1.0.6</version> <!-- Vérifiez cette version, peut-être plus récente -->
         </dependency>
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>
+        <!-- Ajoutez d'autres dépendances de votre projet ici -->
     </dependencies>
 
     <build>
         <plugins>
-            <!-- Plugin Maven Compiler -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
-                <configuration>
-                    <source>11</source>
-                    <target>11</target>
-                </configuration>
-            </plugin>
-
-            <!-- Plugin pour OWASP ZAP -->
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>owasp-zap-maven-plugin</artifactId>
-                <version>1.0.7</version> <!-- Version mise à jour -->
+                <version>1.0.6</version> <!-- Vérifiez cette version -->
                 <executions>
                     <execution>
-                        <id>default</id>
+                        <id>zap</id>
                         <phase>verify</phase>
                         <goals>
                             <goal>zap</goal>
@@ -60,54 +44,8 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <!-- Plugin pour construire une image Docker -->
-            <plugin>
-                <groupId>com.spotify</groupId>
-                <artifactId>dockerfile-maven-plugin</artifactId>
-                <version>1.4.10</version>
-                <executions>
-                    <execution>
-                        <id>build-image</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>build</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>push-image</id>
-                        <phase>deploy</phase>
-                        <goals>
-                            <goal>push</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <repository>monsuperepo/myapp</repository>
-                    <tag>latest</tag>
-                </configuration>
-            </plugin>
+            <!-- Ajoutez d'autres plugins si nécessaire -->
         </plugins>
     </build>
 
-    <profiles>
-        <profile>
-            <id>zap</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.owasp</groupId>
-                        <artifactId>owasp-zap-maven-plugin</artifactId>
-                        <version>1.0.7</version>
-                        <configuration>
-                            <targetURL>http://localhost:8080</targetURL>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

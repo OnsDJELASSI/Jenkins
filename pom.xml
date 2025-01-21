@@ -16,6 +16,11 @@
             <id>central</id>
             <url>https://repo.maven.apache.org/maven2</url>
         </repository>
+        <!-- Dépôt OWASP pour le plugin OWASP ZAP -->
+        <repository>
+            <id>owasp-repo</id>
+            <url>https://repository.owasp.org/artifactory/owasp-releases</url>
+        </repository>
     </repositories>
 
     <dependencies>

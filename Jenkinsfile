@@ -1,31 +1,49 @@
 pipeline {
     agent any
 
+    environment {
+        // Définir des variables d'environnement si nécessaire
+        ADMIN_USER = 'OnsDj'
+        ADMIN_PASSWORD = 'OnsDj'
+    }
+
+    tools {
+        maven 'Maven 3'  // Nom de l'outil Maven configuré dans Jenkins
+    }
+
     stages {
+        stage('Checkout') {
+            steps {
+                withCredentials([string(credentialsId: '55558', variable: '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')]) {
+                    echo 'Cloning repository...'
+                    sh 'rm -rf Jenkins'  // Supprimer le répertoire Jenkins existant
+                    sh 'git clone https://x-access-token:${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}@github.com/OnsDJELASSI/Jenkins.git'
+                }
+            }
+        }
+
         stage('Build') {
             steps {
-                // Commandes pour construire votre application
                 echo 'Building...'
-                // Exemple : Compilation du projet
-                sh 'make' // ou une autre commande de construction
+                sh 'mvn clean install'  // Exécuter Maven pour construire le projet
             }
         }
+
         stage('Test') {
             steps {
-                // Commandes pour tester votre application
-                echo 'Testing...'
-                // Exemple : Tests unitaires
-                sh 'make test' // ou une autre commande de test
+                echo 'Running tests...'
+                sh 'mvn test'  // Exécuter les tests unitaires avec Maven
             }
         }
+
         stage('Deploy') {
             steps {
-                // Commandes pour déployer votre application
-                echo 'Deploying...'
-                // Exemple : Déploiement de l'application
-                sh 'make deploy' // ou une autre commande de déploiement
+                echo 'Deploying application...'
+                sh 'docker build -t your-image .'  // Créer une image Docker
+                sh 'docker run -d -p 8080:8080 your-image'  // Lancer l'application dans un conteneur Docker
             }
         }
+
         stage('Security Test with OWASP ZAP') {
             steps {
                 script {

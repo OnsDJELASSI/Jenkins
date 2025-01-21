@@ -49,17 +49,10 @@
             <plugin>
                 <groupId>org.owasp</groupId>
                 <artifactId>owasp-zap-maven-plugin</artifactId>
-                <version>1.0.6</version> <!-- Version modifiée à 1.0.6 -->
+                <version>1.0.7</version> <!-- Version mise à jour -->
                 <executions>
                     <execution>
                         <id>default</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>zap</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>zap-scan</id>
                         <phase>verify</phase>
                         <goals>
                             <goal>zap</goal>
@@ -97,13 +90,6 @@
         </plugins>
     </build>
 
-    <repositories>
-        <repository>
-            <id>owasp-repo</id>
-            <url>https://repo1.maven.org/maven2/</url>
-        </repository>
-    </repositories>
-
     <profiles>
         <profile>
             <id>zap</id>
@@ -115,7 +101,7 @@
                     <plugin>
                         <groupId>org.owasp</groupId>
                         <artifactId>owasp-zap-maven-plugin</artifactId>
-                        <version>1.0.6</version> <!-- Version modifiée à 1.0.6 -->
+                        <version>1.0.7</version>
                         <configuration>
                             <targetURL>http://localhost:8080</targetURL>
                         </configuration>

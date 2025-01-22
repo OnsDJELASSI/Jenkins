@@ -13,7 +13,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                withCredentials([string(credentialsId: '55558', variable: 'GIT_TOKEN')]) {
+                withCredentials([string(credentialsId: '55558', variable: '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')]) {
                     echo '🚀 Clonage du repository...'
                     sh 'rm -rf Jenkins'  // Supprimer le dossier existant
                     sh 'git clone https://x-access-token:${GIT_TOKEN}@github.com/OnsDJELASSI/Jenkins.git'

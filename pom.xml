@@ -14,34 +14,30 @@
             <id>central</id>
             <url>https://repo.maven.apache.org/maven2</url>
         </repository>
-
-        <repository>
-            <id>zaproxy</id>
-            <url>https://raw.githubusercontent.com/zaproxy/maven/main/releases</url>
-        </repository>
     </repositories>
 
     <dependencies>
-        <!-- Ajoutez ici toutes les dépendances nécessaires -->
+        <!-- Dépendance pour les tests JUnit -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Ajoutez ici d'autres dépendances nécessaires -->
     </dependencies>
 
     <build>
         <plugins>
+            <!-- Plugin Maven Compiler -->
             <plugin>
-                <groupId>org.zaproxy</groupId>
-                <artifactId>zap-maven-plugin</artifactId>
-                <version>1.1.0</version> <!-- Version stable -->
-                <executions>
-                    <execution>
-                        <id>zap</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>zap</goal>
-                        </goals>
-                    </execution>
-                </executions>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
                 <configuration>
-                    <targetUrl>http://localhost:8080</targetUrl>
+                    <source>8</source>
+                    <target>8</target>
                 </configuration>
             </plugin>
         </plugins>

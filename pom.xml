@@ -1,38 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://www.maven.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- Informations sur le projet -->
     <groupId>com.example</groupId>
     <artifactId>my-app</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <repositories>
-        <!-- Dépôt Maven central pour récupérer les dépendances -->
         <repository>
             <id>central</id>
             <url>https://repo.maven.apache.org/maven2</url>
         </repository>
-        <!-- Dépôt OWASP pour le plugin OWASP ZAP -->
+
         <repository>
-            <id>owasp-repo</id>
-            <url>https://repository.owasp.org/artifactory/owasp-releases</url>
+            <id>zaproxy</id>
+            <url>https://raw.githubusercontent.com/zaproxy/maven/main/releases</url>
         </repository>
     </repositories>
 
     <dependencies>
-        <!-- Ajoutez d'autres dépendances de votre projet ici -->
+        <!-- Ajoutez ici toutes les dépendances nécessaires -->
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>owasp-zap-maven-plugin</artifactId>
-                <version>2.9.0</version> <!-- Mettez à jour avec une version valide -->
+                <groupId>org.zaproxy</groupId>
+                <artifactId>zap-maven-plugin</artifactId>
+                <version>1.1.0</version> <!-- Version stable -->
                 <executions>
                     <execution>
                         <id>zap</id>
@@ -42,9 +40,10 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <targetUrl>http://localhost:8080</targetUrl>
+                </configuration>
             </plugin>
-            <!-- Ajoutez d'autres plugins si nécessaire -->
         </plugins>
     </build>
-
 </project>

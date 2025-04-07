@@ -1,74 +1,80 @@
 pipeline {
     agent any
 
+    environment {
+        ZAP_PORT = '7075'
+        ZAP_TARGET = 'https://testphp.vulnweb.com'
+    }
+
     stages {
-        stage('Préparation') {
+        stage('Clean workspace') {
             steps {
-                echo 'Nettoyage du workspace...'
                 cleanWs()
             }
         }
 
-        stage('Cloner le dépôt') {
+        stage('Git Checkout') {
             steps {
                 git 'https://github.com/OnsDJELASSI/Jenkins.git'
             }
         }
 
-        stage('Lancer OWASP ZAP') {
+        stage('Start ZAP in daemon mode') {
             steps {
                 script {
-                    echo 'Vérification si ZAP est déjà en cours d\'exécution...'
-                    def zapContainerRunning = sh(script: "docker ps -q -f name=zap", returnStdout: true).trim()
-                    if (zapContainerRunning) {
-                        echo 'ZAP est déjà en cours d\'exécution.'
+                    def zapRunning = sh(script: "docker ps -q -f name=zap", returnStdout: true).trim()
+                    if (zapRunning) {
+                        echo "ZAP is already running."
                     } else {
-                        echo 'Démarrage de ZAP...'
+                        echo "Starting ZAP container..."
                         sh '''
-                        docker run -u zap -d -p 7075:7075 --name zap \
-                          zaproxy/zap-stable:2.14.0 \
-                          zap.sh -daemon -host 0.0.0.0 -port 7075 \
-                          -config api.addrs.addr.name='.*' \
-                          -config api.addrs.addr.regex=true \
-                          -config api.disablekey=true
+                        docker run -u zap -d -p ${ZAP_PORT}:${ZAP_PORT} --name zap \
+                            zaproxy/zap-stable:2.14.0 \
+                            zap.sh -daemon -host 0.0.0.0 -port ${ZAP_PORT} \
+                            -config api.addrs.addr.name='.*' \
+                            -config api.addrs.addr.regex=true \
+                            -config api.disablekey=true
                         '''
-                        echo 'Attente du démarrage de ZAP...'
-                        sleep 30
+                        sleep 30 // attendre le démarrage complet
                     }
                 }
             }
         }
 
-        stage('Scan avec OWASP ZAP') {
+        stage('Run ZAP Scan') {
             steps {
                 script {
-                    echo 'Lancement du scan OWASP ZAP...'
-                    sh '''
-                    curl "http://localhost:7075/JSON/ascan/action/scan/?url=https://testphp.vulnweb.com&recurse=true&inContext=false"
+                    echo "Launching active scan..."
+                    sh """
+                    curl "http://localhost:${ZAP_PORT}/JSON/ascan/action/scan/?url=${ZAP_TARGET}&recurse=true"
                     sleep 60
-                    '''
+                    """
                 }
             }
         }
 
-        stage('Arrêter ZAP & Récupérer les résultats') {
+        stage('Generate report') {
             steps {
-                script {
-                    echo 'Arrêt de ZAP...'
-                    sh 'docker stop zap || true'
+                echo "Exporting scan report..."
+                sh """
+                curl "http://localhost:${ZAP_PORT}/OTHER/core/other/jsonreport/" -o zap_report.json
+                """
+            }
+        }
 
-                    echo 'Archivage des résultats du scan...'
-                    sh 'docker cp zap:/zap/wrk . || true'
-                }
+        stage('Stop ZAP') {
+            steps {
+                echo "Stopping ZAP..."
+                sh "docker stop zap || true"
             }
         }
     }
 
     post {
         always {
-            echo 'Nettoyage final...'
-            sh 'docker rm zap || true'
-            archiveArtifacts artifacts: 'wrk/*.json', allowEmptyArchive: true
+            echo "Cleanup and archive results..."
+            sh "docker rm zap || true"
+            archiveArtifacts artifacts: 'zap_report.json', allowEmptyArchive: true
         }
     }
 }

@@ -32,6 +32,7 @@ pipeline {
                 script {
                     echo "Lancement du scan OWASP ZAP..."
 
+                    // Remplacer example.com par un vrai site vulnérable
                     def targetUrl = "http://testphp.vulnweb.com"
 
                     def response = sh (

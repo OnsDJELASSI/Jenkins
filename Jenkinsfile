@@ -2,53 +2,63 @@ pipeline {
     agent any
 
     stages {
-        stage('Start ZAP') {
+        stage('Préparation') {
+            steps {
+                echo 'Nettoyage du workspace...'
+                cleanWs()
+            }
+        }
+
+        stage('Cloner le dépôt') {
+            steps {
+                git 'https://github.com/OnsDJELASSI/Jenkins.git'
+            }
+        }
+
+        stage('Lancer OWASP ZAP') {
             steps {
                 script {
-                    echo "Vérification si ZAP est déjà en cours d'exécution..."
-                    def zapRunning = sh(script: "docker ps -q --filter name=zap", returnStdout: true).trim()
-
-                    if (zapRunning == "") {
-                        echo "Lancement du container ZAP..."
-                        sh """
-                            docker run -u zap -d -p 7075:7075 --name zap \
-                            zaproxy/zap-stable:2.14.0 \
-                            zap.sh -daemon -host 0.0.0.0 -port 7075 \
-                            -config api.addrs.addr.name='.*' \
-                            -config api.addrs.addr.regex=true \
-                            -config api.disablekey=true
-                        """
-                        echo "Attente du démarrage complet de ZAP (10s)..."
-                        sleep 10
+                    echo 'Vérification si ZAP est déjà en cours d\'exécution...'
+                    def zapContainerRunning = sh(script: "docker ps -q -f name=zap", returnStdout: true).trim()
+                    if (zapContainerRunning) {
+                        echo 'ZAP est déjà en cours d\'exécution.'
                     } else {
-                        echo "ZAP est déjà en cours d'exécution."
+                        echo 'Démarrage de ZAP...'
+                        sh '''
+                        docker run -u zap -d -p 7075:7075 --name zap \
+                          zaproxy/zap-stable:2.14.0 \
+                          zap.sh -daemon -host 0.0.0.0 -port 7075 \
+                          -config api.addrs.addr.name='.*' \
+                          -config api.addrs.addr.regex=true \
+                          -config api.disablekey=true
+                        '''
+                        echo 'Attente du démarrage de ZAP...'
+                        sleep 30
                     }
                 }
             }
         }
 
-        stage('Scan avec ZAP') {
+        stage('Scan avec OWASP ZAP') {
             steps {
                 script {
-                    echo "Lancement du scan OWASP ZAP..."
+                    echo 'Lancement du scan OWASP ZAP...'
+                    sh '''
+                    curl "http://localhost:7075/JSON/ascan/action/scan/?url=https://testphp.vulnweb.com&recurse=true&inContext=false"
+                    sleep 60
+                    '''
+                }
+            }
+        }
 
-                    // Remplacer example.com par un vrai site vulnérable
-                    def targetUrl = "http://testphp.vulnweb.com"
+        stage('Arrêter ZAP & Récupérer les résultats') {
+            steps {
+                script {
+                    echo 'Arrêt de ZAP...'
+                    sh 'docker stop zap || true'
 
-                    def response = sh (
-                        script: """curl -s -X GET "http://localhost:7075/JSON/ascan/action/scan" \\
-                            -d "url=${targetUrl}" \\
-                            -d "recurse=true" \\
-                            -d "inContext=false"
-                        """,
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Réponse ZAP : ${response}"
-
-                    if (response == "" || response.contains("Error")) {
-                        error("ZAP n'a pas répondu correctement. Vérifie le container ou la cible.")
-                    }
+                    echo 'Archivage des résultats du scan...'
+                    sh 'docker cp zap:/zap/wrk . || true'
                 }
             }
         }
@@ -56,9 +66,9 @@ pipeline {
 
     post {
         always {
-            echo "Nettoyage du container ZAP..."
-            sh "docker stop zap || true"
-            sh "docker rm zap || true"
+            echo 'Nettoyage final...'
+            sh 'docker rm zap || true'
+            archiveArtifacts artifacts: 'wrk/*.json', allowEmptyArchive: true
         }
     }
 }

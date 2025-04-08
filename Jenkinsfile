@@ -105,7 +105,7 @@ pipeline {
         stage('Nettoyage') {
             steps {
                 script {
-                    sh "docker stop ${ZAP_CONTAINER_NAME} || true"
+                    sh "sudo docker stop ${ZAP_CONTAINER_NAME} || true"
                     sh "docker rm ${ZAP_CONTAINER_NAME} || true"
                 }
             }

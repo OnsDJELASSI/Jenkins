@@ -58,6 +58,7 @@ pipeline {
         stage('Lancer le scan ZAP') {
             steps {
                 echo "Lancement du scan ZAP..."
+                // Correction : Utilisation de la variable ZAP_TARGET
                 sh """
                 curl -X GET "http://localhost:${ZAP_PORT}/JSON/ascan/action/scan" \
                     -d url=${ZAP_TARGET} \
@@ -96,4 +97,5 @@ pipeline {
                 archiveArtifacts allowEmptyArchive: true, artifacts: 'zap_report.json', onlyIfSuccessful: true
             }
         }
-   
+    }
+}

@@ -45,7 +45,10 @@ pipeline {
             steps {
                 echo "Lancement du scan ZAP..."
                 sh """
-                curl "http://localhost:${ZAP_PORT}/JSON/ascan/action/scan/?url=${ZAP_TARGET}&recurse=true"
+                curl http://localhost:${ZAP_PORT}/JSON/ascan/action/scan \\
+                    -d url=${ZAP_TARGET} \\
+                    -d recurse=true \\
+                    -d inContext=false
                 sleep 60
                 """
             }
@@ -53,26 +56,13 @@ pipeline {
 
         stage('Générer le rapport') {
             steps {
-                echo "Exportation du rapport JSON..."
+                echo "Génération du rapport JSON..."
                 sh """
-                curl "http://localhost:${ZAP_PORT}/OTHER/core/other/jsonreport/" -o zap_report.json
+                curl http://localhost:${ZAP_PORT}/OTHER/core/other/jsonreport/ -o zap_report.json
                 """
             }
         }
 
         stage('Arrêter ZAP') {
             steps {
-                echo "Arrêt de ZAP..."
-                sh "docker stop zap || true"
-            }
-        }
-    }
-
-    post {
-        always {
-            echo "Nettoyage..."
-            sh "docker rm zap || true"
-            archiveArtifacts artifacts: 'zap_report.json', allowEmptyArchive: true
-        }
-    }
-}
+                echo "Arr

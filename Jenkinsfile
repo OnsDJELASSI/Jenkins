@@ -4,8 +4,9 @@ pipeline {
     environment {
         ZAP_PORT = '7075'
         ZAP_TARGET = 'http://juice-shop.herokuapp.com' 
-        ZAP_CONTAINER_NAME = 'zap_scan'
+        ZAP_CONTAINER_NAME = 'zap_juice_scan'
         SCAN_POLICY = 'Default Policy'
+        WORKSPACE = "${env.WORKSPACE}"
     }
 
     stages {
@@ -16,90 +17,95 @@ pipeline {
             }
         }
 
-        stage('Démarrer ZAP') {
+        stage('Démarrage ZAP') {
             steps {
                 script {
-                    // Nettoyer les anciens conteneurs
+                    // Nettoyage des anciens conteneurs
                     sh "docker rm -f ${ZAP_CONTAINER_NAME} || true"
                     
-                    // Lancer le conteneur ZAP
+                    // Lancement avec volume persistant
                     sh """
                     docker run -d --rm --name ${ZAP_CONTAINER_NAME} \
+                      -v ${WORKSPACE}:/zap/wrk:rw \
                       -p ${ZAP_PORT}:${ZAP_PORT} \
                       owasp/zap2docker-stable:2.14.0 \
-                      zap.sh -daemon -host 0.0.0.0 -port ${ZAP_PORT} \
+                      zap-x.sh -daemon -host 0.0.0.0 -port ${ZAP_PORT} \
                       -config api.addrs.addr.name=.* \
                       -config api.addrs.addr.regex=true \
-                      -config api.disablekey=true
+                      -config api.disablekey=true \
+                      -config database.newsession=3
                     """
                     
-                    // Attendre l'initialisation
-                    sleep 120
-                }
-            }
-        }
-
-        stage('Vérification API') {
-            steps {
-                script {
-                    waitUntil {
-                        try {
-                            sh "curl -sSf http://localhost:${ZAP_PORT}/JSON/version"
+                    // Attente intelligente
+                    timeout(time: 2, unit: 'MINUTES') {
+                        waitUntil {
+                            sh "curl -sSf http://localhost:${ZAP_PORT}/JSON/core/action/newSession > /dev/null"
                             return true
-                        } catch (Exception e) {
-                            sleep 10
-                            return false
                         }
                     }
                 }
             }
         }
 
-        stage('Scan actif') {
+        stage('Exécution du scan') {
             steps {
                 script {
-                    // Démarrer le scan
-                    def scanId = sh(script: """
+                    // Configuration du contexte
+                    sh """
+                    curl -sS -X POST "http://localhost:${ZAP_PORT}/JSON/context/action/includeInContext/" \
+                      --data-urlencode "contextName=JuiceShop" \
+                      --data-urlencode "regex=${ZAP_TARGET}.*"
+                    """
+                    
+                    // Démarrage du scan
+                    def scanId = sh(returnStdout: true, script: """
                         curl -sS -X POST "http://localhost:${ZAP_PORT}/JSON/ascan/action/scan/" \
                           --data-urlencode "url=${ZAP_TARGET}" \
-                          --data "contextName=JuiceShop_Scan" \
+                          --data "contextName=JuiceShop" \
                           --data "scanPolicyName=${SCAN_POLICY}" \
                           --data "recurse=true" \
+                          --data "inScopeOnly=true" \
                           | jq -r '.scan'
-                    """, returnStdout: true).trim()
+                    """).trim()
 
-                    echo "Scan ID: ${scanId}"
-
-                    // Surveiller la progression
-                    def progress = "0"
-                    while (progress != "100") {
-                        sleep 30
-                        progress = sh(script: """
+                    // Surveillance du scan
+                    while(true) {
+                        def status = sh(returnStdout: true, script: """
                             curl -sS "http://localhost:${ZAP_PORT}/JSON/ascan/view/status/?scanId=${scanId}" \
                             | jq -r '.status'
-                        """, returnStdout: true).trim()
-                        echo "Progression du scan: ${progress}%"
+                        """).trim()
+                        
+                        if (status == '100') break
+                        echo "Progression: ${status}%"
+                        sleep 30
                     }
                 }
             }
         }
 
-        stage('Génération rapport') {
+        stage('Rapports') {
             steps {
                 script {
-                    // Générer le rapport HTML et JSON
+                    // Génération des rapports
                     sh """
-                        curl -sS "http://localhost:${ZAP_PORT}/OTHER/core/other/htmlreport/" -o zap_report.html
-                        curl -sS "http://localhost:${ZAP_PORT}/OTHER/core/other/jsonreport/" -o zap_report.json
+                    docker exec ${ZAP_CONTAINER_NAME} zap-cli report \
+                      -o /zap/wrk/zap_report.html \
+                      -f html
+                    
+                    docker exec ${ZAP_CONTAINER_NAME} zap-cli report \
+                      -o /zap/wrk/zap_report.json \
+                      -f json
                     """
+                    
+                    // Vérification des résultats
+                    def alerts = sh(returnStdout: true, script: """
+                        jq '.alerts | length' zap_report.json
+                    """).trim().toInteger()
+                    
+                    if(alerts > 0) {
+                        unstable("Vulnérabilités détectées: ${alerts}")
+                    }
                 }
-            }
-        }
-
-        stage('Archivage') {
-            steps {
-                archiveArtifacts artifacts: 'zap_report.*', allowEmptyArchive: false
-                zap scan: 'zap_report.html'
             }
         }
     }
@@ -107,20 +113,23 @@ pipeline {
     post {
         always {
             script {
-                // Nettoyage des conteneurs
+                // Arrêt propre du conteneur
                 sh "docker stop ${ZAP_CONTAINER_NAME} || true"
-                sh "docker rm ${ZAP_CONTAINER_NAME} || true"
                 
-                // Publier les rapports
-                junit testResults: 'zap_report.xml', allowEmptyResults: true
-                publishHTML target: [
-                    allowMissing: false,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: '.',
-                    reportFiles: 'zap_report.html',
-                    reportName: 'Rapport ZAP'
-                ]
+                // Archivage
+                archiveArtifacts artifacts: 'zap_report.*', allowEmptyArchive: true
+                
+                // Publication HTML
+                publishHTML(
+                    target: [
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: '.',
+                        reportFiles: 'zap_report.html',
+                        reportName: 'Rapport ZAP'
+                    ]
+                )
             }
         }
     }

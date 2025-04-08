@@ -43,6 +43,18 @@ pipeline {
             }
         }
 
+        stage('Vérifier l\'accessibilité de l\'API ZAP') {
+            steps {
+                script {
+                    echo "Vérification de l'accessibilité de l'API ZAP..."
+                    def apiCheck = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:${ZAP_PORT}/JSON/version", returnStdout: true).trim()
+                    if (apiCheck != '200') {
+                        error "L'API ZAP n'est pas accessible. Code HTTP: ${apiCheck}"
+                    }
+                }
+            }
+        }
+
         stage('Lancer le scan ZAP') {
             steps {
                 echo "Lancement du scan ZAP..."
@@ -70,9 +82,9 @@ pipeline {
                 script {
                     echo "Arrêt de ZAP..."
                     // Arrêt du conteneur ZAP
-                    sh 'docker stop ${ZAP_CONTAINER_NAME}'
+                    sh "docker stop ${ZAP_CONTAINER_NAME}"
                     // Suppression du conteneur ZAP pour libérer les ressources
-                    sh 'docker rm ${ZAP_CONTAINER_NAME}'
+                    sh "docker rm ${ZAP_CONTAINER_NAME}"
                 }
             }
         }

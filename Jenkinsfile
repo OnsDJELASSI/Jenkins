@@ -2,106 +2,125 @@ pipeline {
     agent any
 
     environment {
-        ZAP_PORT = '7075' // Port de l'API ZAP
-        ZAP_TARGET = 'http://juice-shop.herokuapp.com' // URL cible à scanner
-        ZAP_CONTAINER_NAME = 'zap' // Nom du conteneur ZAP
+        ZAP_PORT = '7075'
+        ZAP_TARGET = 'http://juice-shop.herokuapp.com' 
+        ZAP_CONTAINER_NAME = 'zap_scan'
+        SCAN_POLICY = 'Default Policy'
     }
 
     stages {
-        stage('Clean workspace') {
+        stage('Préparation') {
             steps {
-                cleanWs() // Nettoyage du workspace avant de commencer
+                cleanWs()
+                git url: 'https://github.com/OnsDJELASSI/Jenkins.git', branch: 'main'
             }
         }
 
-        stage('Git Checkout') {
-            steps {
-                git 'https://github.com/OnsDJELASSI/Jenkins.git' // Clonage du dépôt Git
-            }
-        }
-
-        stage('Start ZAP') {
+        stage('Démarrer ZAP') {
             steps {
                 script {
-                    // Vérification si ZAP est déjà en cours d'exécution
-                    def zapRunning = sh(script: "docker ps -q --filter name=${ZAP_CONTAINER_NAME}", returnStdout: true).trim()
+                    // Nettoyer les anciens conteneurs
+                    sh "docker rm -f ${ZAP_CONTAINER_NAME} || true"
+                    
+                    // Lancer le conteneur ZAP
+                    sh """
+                    docker run -d --rm --name ${ZAP_CONTAINER_NAME} \
+                      -p ${ZAP_PORT}:${ZAP_PORT} \
+                      owasp/zap2docker-stable:2.14.0 \
+                      zap.sh -daemon -host 0.0.0.0 -port ${ZAP_PORT} \
+                      -config api.addrs.addr.name=.* \
+                      -config api.addrs.addr.regex=true \
+                      -config api.disablekey=true
+                    """
+                    
+                    // Attendre l'initialisation
+                    sleep 120
+                }
+            }
+        }
 
-                    if (zapRunning) {
-                        echo "ZAP est déjà en cours d'exécution."
-                    } else {
-                        echo "Démarrage de ZAP..."
-                        sh """
-                        docker run -d --name ${ZAP_CONTAINER_NAME} -p ${ZAP_PORT}:${ZAP_PORT} \
-                          zaproxy/zap-stable:2.14.0 \
-                          zap.sh -daemon -host 0.0.0.0 -port ${ZAP_PORT} \
-                          -config api.addrs.addr.name='.*' \
-                          -config api.addrs.addr.regex=true \
-                          -config api.disablekey=true
-                        """
-                        sleep 30 // Attendre que ZAP soit prêt
+        stage('Vérification API') {
+            steps {
+                script {
+                    waitUntil {
+                        try {
+                            sh "curl -sSf http://localhost:${ZAP_PORT}/JSON/version"
+                            return true
+                        } catch (Exception e) {
+                            sleep 10
+                            return false
+                        }
                     }
                 }
             }
         }
 
-        stage('Vérifier l\'accessibilité de l\'API ZAP') {
+        stage('Scan actif') {
             steps {
                 script {
-                    echo "Vérification de l'accessibilité de l'API ZAP..."
-                    def apiCheck = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:${ZAP_PORT}/JSON/version", returnStdout: true).trim()
+                    // Démarrer le scan
+                    def scanId = sh(script: """
+                        curl -sS -X POST "http://localhost:${ZAP_PORT}/JSON/ascan/action/scan/" \
+                          --data-urlencode "url=${ZAP_TARGET}" \
+                          --data "contextName=JuiceShop_Scan" \
+                          --data "scanPolicyName=${SCAN_POLICY}" \
+                          --data "recurse=true" \
+                          | jq -r '.scan'
+                    """, returnStdout: true).trim()
 
-                    if (apiCheck != '200') {
-                        error "L'API ZAP n'est pas accessible. Code HTTP: ${apiCheck}"
+                    echo "Scan ID: ${scanId}"
+
+                    // Surveiller la progression
+                    def progress = "0"
+                    while (progress != "100") {
+                        sleep 30
+                        progress = sh(script: """
+                            curl -sS "http://localhost:${ZAP_PORT}/JSON/ascan/view/status/?scanId=${scanId}" \
+                            | jq -r '.status'
+                        """, returnStdout: true).trim()
+                        echo "Progression du scan: ${progress}%"
                     }
                 }
             }
         }
 
-        stage('Lancer le scan ZAP') {
-            steps {
-                echo "Lancement du scan ZAP..."
-                sh """
-                curl -X GET "http://localhost:${ZAP_PORT}/JSON/ascan/action/scan" \
-                    -d url=${ZAP_TARGET} \
-                    -d recurse=true \
-                    -d inContext=false
-                sleep 60 // Attente pour laisser le temps au scan de se lancer
-                """
-            }
-        }
-
-        stage('Générer le rapport') {
-            steps {
-                echo "Génération du rapport JSON..."
-                sh """
-                curl -X GET "http://localhost:${ZAP_PORT}/OTHER/core/other/jsonreport/" -o zap_report.json
-                """
-            }
-        }
-
-        stage('Arrêter ZAP') {
+        stage('Génération rapport') {
             steps {
                 script {
-                    echo "Arrêt de ZAP..."
-                    // Arrêt du conteneur ZAP
-                    sh "docker stop ${ZAP_CONTAINER_NAME}"
-                    // Suppression du conteneur ZAP pour libérer les ressources
-                    sh "docker rm ${ZAP_CONTAINER_NAME}"
+                    // Générer le rapport HTML et JSON
+                    sh """
+                        curl -sS "http://localhost:${ZAP_PORT}/OTHER/core/other/htmlreport/" -o zap_report.html
+                        curl -sS "http://localhost:${ZAP_PORT}/OTHER/core/other/jsonreport/" -o zap_report.json
+                    """
                 }
             }
         }
 
-        stage('Archiver les résultats') {
+        stage('Archivage') {
             steps {
-                script {
-                    echo "Archivage du rapport..."
-                    // Vérification de l'existence du rapport avant d'archiver
-                    if (fileExists('zap_report.json')) {
-                        archiveArtifacts allowEmptyArchive: true, artifacts: 'zap_report.json', onlyIfSuccessful: true
-                    } else {
-                        error "Le rapport zap_report.json n'a pas été généré."
-                    }
-                }
+                archiveArtifacts artifacts: 'zap_report.*', allowEmptyArchive: false
+                zap scan: 'zap_report.html'
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                // Nettoyage des conteneurs
+                sh "docker stop ${ZAP_CONTAINER_NAME} || true"
+                sh "docker rm ${ZAP_CONTAINER_NAME} || true"
+                
+                // Publier les rapports
+                junit testResults: 'zap_report.xml', allowEmptyResults: true
+                publishHTML target: [
+                    allowMissing: false,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: '.',
+                    reportFiles: 'zap_report.html',
+                    reportName: 'Rapport ZAP'
+                ]
             }
         }
     }

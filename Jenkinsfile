@@ -96,13 +96,4 @@ pipeline {
                 archiveArtifacts allowEmptyArchive: true, artifacts: 'zap_report.json', onlyIfSuccessful: true
             }
         }
-    }
-
-    post {
-        always {
-            // Nettoyage supplémentaire si nécessaire, par exemple supprimer les volumes Docker inutiles
-            echo "Nettoyage des ressources Docker..."
-            sh 'docker system prune -f'
-        }
-    }
-}
+   

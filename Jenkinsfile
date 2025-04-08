@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         ZAP_PORT = '7075' // Port de l'API ZAP
-        ZAP_TARGET = 'https://testphp.vulnweb.com' // URL cible à scanner
+        ZAP_TARGET = 'http://testphp.bwapp.com/' // URL cible à scanner
         ZAP_CONTAINER_NAME = 'zap' // Nom du conteneur ZAP
     }
 

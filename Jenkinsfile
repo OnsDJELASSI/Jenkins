@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         ZAP_PORT = '7075' // Port de l'API ZAP
-        ZAP_TARGET = 'http://testphp.bwapp.com/' // URL cible à scanner
+        ZAP_TARGET = 'http://juice-shop.herokuapp.com' // URL cible à scanner
         ZAP_CONTAINER_NAME = 'zap' // Nom du conteneur ZAP
     }
 
@@ -25,6 +25,7 @@ pipeline {
                 script {
                     // Vérification si ZAP est déjà en cours d'exécution
                     def zapRunning = sh(script: "docker ps -q --filter name=${ZAP_CONTAINER_NAME}", returnStdout: true).trim()
+
                     if (zapRunning) {
                         echo "ZAP est déjà en cours d'exécution."
                     } else {
@@ -48,6 +49,7 @@ pipeline {
                 script {
                     echo "Vérification de l'accessibilité de l'API ZAP..."
                     def apiCheck = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:${ZAP_PORT}/JSON/version", returnStdout: true).trim()
+
                     if (apiCheck != '200') {
                         error "L'API ZAP n'est pas accessible. Code HTTP: ${apiCheck}"
                     }
@@ -58,7 +60,6 @@ pipeline {
         stage('Lancer le scan ZAP') {
             steps {
                 echo "Lancement du scan ZAP..."
-                // Correction : Utilisation de la variable ZAP_TARGET
                 sh """
                 curl -X GET "http://localhost:${ZAP_PORT}/JSON/ascan/action/scan" \
                     -d url=${ZAP_TARGET} \
@@ -92,9 +93,15 @@ pipeline {
 
         stage('Archiver les résultats') {
             steps {
-                echo "Archivage du rapport..."
-                // Archivage du rapport JSON généré dans Jenkins pour consultation
-                archiveArtifacts allowEmptyArchive: true, artifacts: 'zap_report.json', onlyIfSuccessful: true
+                script {
+                    echo "Archivage du rapport..."
+                    // Vérification de l'existence du rapport avant d'archiver
+                    if (fileExists('zap_report.json')) {
+                        archiveArtifacts allowEmptyArchive: true, artifacts: 'zap_report.json', onlyIfSuccessful: true
+                    } else {
+                        error "Le rapport zap_report.json n'a pas été généré."
+                    }
+                }
             }
         }
     }
